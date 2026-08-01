@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Enable class-based dark mode in Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  --color-accent: #B89047; /* Elegant old gold/champagne */
+  --color-accent-light: #F7F5F0;
+  --color-accent-dark: #8E6E32;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #FAFAFA;
+  color: #18181B; /* Zinc-900 */
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background-color: #09090B;
+  color: #F4F4F5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+/* Minimalist Editorial Card */
+.editorial-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E4E4E7; /* Zinc-200 */
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editorial-card:hover {
+  border-color: #D4D4D8; /* Zinc-300 */
+  box-shadow: 0 4px 12px -2px rgba(24, 24, 27, 0.04);
+  transform: translateY(-1px);
+}
+
+/* Custom Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E4E4E7; /* Zinc-200 */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D4D4D8; /* Zinc-300 */
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #27272A; /* Zinc-800 */
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3F3F46; /* Zinc-700 */
+}
