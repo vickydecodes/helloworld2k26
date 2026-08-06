@@ -5,9 +5,11 @@ import { festInfo } from '../data';
 import { ArrowLeft, Award, ChevronRight, MapPin, RefreshCw, Sun, Moon, Wrench } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import PhaseBadge from '../components/PhaseBadge';
+import BottomSheet from '../components/BottomSheet';
 
 export default function ThankYou() {
   const { events, loading, error, refresh, theme, toggleTheme } = useEvents();
+  const [activeBottomSheetEvent, setActiveBottomSheetEvent] = useState(null);
 
   useEffect(() => {
     document.title = `Thank You | ${festInfo.title} ${festInfo.edition}`;
@@ -53,7 +55,7 @@ export default function ThankYou() {
       <div className="absolute top-4 right-6 flex items-center gap-2 z-40">
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-955 dark:hover:text-white transition-all shadow-3xs cursor-pointer"
+          className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all shadow-3xs cursor-pointer"
           aria-label="Toggle Theme"
         >
           {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
@@ -75,11 +77,11 @@ export default function ThankYou() {
         {/* Closing Thank You card - premium styled */}
         <div className="text-center py-12 md:py-18 border-b border-zinc-200 dark:border-zinc-800">
           {/* Emblem */}
-          <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 flex items-center justify-center text-zinc-550 dark:text-zinc-400 mx-auto mb-4">
+          <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 mx-auto mb-4">
             <Award size={22} />
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-950 dark:text-zinc-55 font-heading mb-3">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-950 dark:text-zinc-100 font-heading mb-3">
             Thank You
           </h1>
           
@@ -88,7 +90,7 @@ export default function ThankYou() {
           </p>
 
           {events.length > 0 && (
-            <span className="inline-flex items-center px-2.5 py-0.5 border border-zinc-250 dark:border-zinc-855 text-zinc-550 dark:text-zinc-450 text-[9px] uppercase font-bold tracking-wider rounded">
+            <span className="inline-flex items-center px-2.5 py-0.5 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-[9px] uppercase font-bold tracking-wider rounded">
               {events.every(e => e.status === 'Ended')
                 ? 'Concluded'
                 : events.every(e => e.status === 'Upcoming')
@@ -101,7 +103,7 @@ export default function ThankYou() {
         {/* Event wrap-up summary list */}
         <div className="pt-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xs md:text-sm font-bold uppercase tracking-wider text-zinc-455 dark:text-zinc-500">
+            <h2 className="text-xs md:text-sm font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
               Event Status Wrap-up
             </h2>
             <button 
@@ -118,27 +120,27 @@ export default function ThankYou() {
           ) : error ? (
             <div className="py-8 border border-zinc-200 dark:border-zinc-800 text-center rounded-xl flex flex-col items-center justify-center">
               <h3 className="font-bold text-red-800 dark:text-red-400 text-xs">Failed to Sync</h3>
-              <p className="text-zinc-550 dark:text-zinc-500 text-[10px] mt-0.5">{error}</p>
+              <p className="text-zinc-500 dark:text-zinc-400 text-[10px] mt-0.5">{error}</p>
             </div>
           ) : (
             <div className="divide-y divide-zinc-200/70 dark:divide-zinc-800/60 border-t border-b border-zinc-200/70 dark:border-zinc-800/60">
               {events.map((event) => {
                 return (
-                  <div key={event.id} className="py-4 flex items-center justify-between gap-4 first:pt-0 last:pb-0 group">
-                    <div className="flex flex-col">
-                      <Link 
-                        to={`/event/${event.id}`}
-                        className="font-bold text-zinc-955 dark:text-zinc-50 text-sm md:text-base group-hover:text-accent dark:group-hover:text-accent transition-colors duration-250 flex items-center gap-1"
+                  <div key={event.id} className="py-4.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-6 group">
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <button 
+                        onClick={() => setActiveBottomSheetEvent(event)}
+                        className="font-bold text-left text-zinc-950 dark:text-zinc-100 text-sm md:text-base hover:text-accent dark:hover:text-accent transition-colors duration-250 flex items-center gap-1 cursor-pointer group"
                       >
-                        <span>{event.name}</span>
-                        <ChevronRight size={13} className="text-zinc-355 dark:text-zinc-650 group-hover:text-accent transform group-hover:translate-x-0.5 transition-all opacity-0 group-hover:opacity-100" />
-                      </Link>
-                      <div className="flex items-center gap-2.5 text-xs text-zinc-450 dark:text-zinc-500 mt-1 font-semibold">
+                        <span className="truncate sm:whitespace-normal">{event.name}</span>
+                        <ChevronRight size={13} className="text-zinc-400 dark:text-zinc-650 group-hover:text-accent transform group-hover:translate-x-0.5 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                      </button>
+                      <div className="flex items-center gap-2.5 text-xs text-zinc-450 dark:text-zinc-500 mt-1 font-semibold flex-wrap">
                         <span>
                           Time: {event.startTime} &mdash; {event.endTime}
                         </span>
                         {event.venue && (
-                          <span className="flex items-center gap-0.5 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200/40 dark:border-zinc-800/60">
+                          <span className="flex items-center gap-0.5 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200/40 dark:border-zinc-800/60">
                             <MapPin size={8} />
                             <span>{event.venue.split('(')[0].trim()}</span>
                           </span>
@@ -146,8 +148,8 @@ export default function ThankYou() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                      {event.phase && <PhaseBadge phase={event.phase} />}
+                    <div className="flex items-center gap-1.5 flex-wrap sm:justify-end flex-shrink-0 mt-1 sm:mt-0">
+                      {event.status !== 'Ended' && event.phase && <PhaseBadge phase={event.phase} />}
                       <StatusBadge status={event.status} />
                     </div>
                   </div>
@@ -159,8 +161,8 @@ export default function ThankYou() {
       </div>
 
       {/* Global Support Contacts Footer */}
-      <footer className="w-full flex flex-col items-center gap-8 border-t border-zinc-200 dark:border-zinc-850 pt-8 mt-16">
-        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left text-xs text-zinc-555 dark:text-zinc-400">
+      <footer className="w-full flex flex-col items-center gap-8 border-t border-zinc-200 dark:border-zinc-800 pt-8 mt-16">
+        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left text-xs text-zinc-500 dark:text-zinc-400">
           <div className="space-y-1">
             <span className="font-bold text-zinc-700 dark:text-zinc-300 block uppercase tracking-wider text-[9px] md:text-[10px]">Support Helpline</span>
             <span className="font-medium">{festInfo.supportPhone}</span>
@@ -176,7 +178,7 @@ export default function ThankYou() {
         </div>
 
         <p className="text-[10px] text-zinc-450 dark:text-zinc-550 text-center font-medium">
-          Copyright &copy; @helloworld2k26
+          {festInfo.copyright}
         </p>
       </footer>
 
@@ -193,25 +195,25 @@ export default function ThankYou() {
               <div className="flex flex-wrap justify-center gap-2">
                 <button 
                   onClick={() => handleTimeTravel('08:00')}
-                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
+                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
                 >
                   8:00 AM
                 </button>
                 <button 
                   onClick={() => handleTimeTravel('09:30')}
-                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
+                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
                 >
                   9:30 AM
                 </button>
                 <button 
                   onClick={() => handleTimeTravel('12:00')}
-                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
+                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
                 >
                   12:00 PM
                 </button>
                 <button 
                   onClick={() => handleTimeTravel('14:00')}
-                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-855 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
+                  className="px-2.5 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
                 >
                   2:00 PM
                 </button>
@@ -230,7 +232,7 @@ export default function ThankYou() {
                 {isTimeTraveling && (
                   <button 
                     onClick={() => handleTimeTravel(null)}
-                    className="px-2.5 py-1 text-xs bg-red-50 dark:bg-red-955/20 text-red-650 dark:text-red-400 border border-red-200 dark:border-red-900 rounded font-bold hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 text-xs bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border border-red-200 dark:border-red-900 rounded font-bold hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                   >
                     Reset
                   </button>
@@ -240,6 +242,12 @@ export default function ThankYou() {
           </div>
         </footer>
       )}
+
+      {/* Dynamic Bottom Sheet Details Overlay */}
+      <BottomSheet 
+        event={activeBottomSheetEvent} 
+        onClose={() => setActiveBottomSheetEvent(null)} 
+      />
 
     </div>
   );

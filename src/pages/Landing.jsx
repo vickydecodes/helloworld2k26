@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEvents } from '../context/EventContext';
 import { festInfo } from '../data';
 import Timeline from '../components/Timeline';
+import BottomSheet from '../components/BottomSheet';
 import { Calendar, Clock, RefreshCw, Search, Timer, Sun, Moon, Wrench } from 'lucide-react';
 
 export default function Landing() {
@@ -11,14 +12,29 @@ export default function Landing() {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [activeBottomSheetEvent, setActiveBottomSheetEvent] = useState(null);
+  
+  // Scrolled state for sticky header animation
+  const [scrolled, setScrolled] = useState(false);
   
   // Countdown details
   const [countdownText, setCountdownText] = useState('');
   const [countdownTargetName, setCountdownTargetName] = useState('');
 
-  // Sync title tag
+  // Sync title tag & scroll listener
   useEffect(() => {
     document.title = `${festInfo.title} — ${festInfo.edition} | College Tech Fest`;
+    
+    const handleScroll = () => {
+      if (window.scrollY > 60) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Compute countdown clock details
@@ -92,9 +108,7 @@ export default function Landing() {
     
     const matchesStatus = statusFilter === 'All' ? true : event.status === statusFilter;
     return matchesSearch && matchesStatus;
-  });
-
-  const formatDate = () => "Thursday, August 13, 2026";
+  });  const formatDate = () => festInfo.formattedDate;
   
   // Show testing time travel ONLY if ?debug=true is present in the URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -136,10 +150,28 @@ export default function Landing() {
   );
 
   const announcement = getAnnouncementText();
+  const mainLogoTopClass = announcement ? 'top-24 md:top-30' : 'top-12 md:top-18';
 
   return (
     <div className="flex-1 w-full flex flex-col justify-between relative">
       
+      {/* Sticky Mini Logo (Rolls & Slides in from off-screen Left on Scroll) */}
+      <div 
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className={`fixed top-3.5 z-50 cursor-pointer transition-all duration-500 ease-out flex items-center justify-center rounded-full bg-transparent hover:scale-105 active:scale-95 w-10 h-10 md:w-12 md:h-12 ${
+          scrolled 
+            ? 'left-4 translate-x-0 rotate-0 opacity-100 pointer-events-auto' 
+            : 'left-0 -translate-x-20 -rotate-360 opacity-0 pointer-events-none'
+        }`}
+        title="Scroll to Top"
+      >
+        <img 
+          src={`${festInfo.logo}?v=2`} 
+          alt={`${festInfo.title} Sticky Logo`}
+          className="w-full h-full object-cover rounded-full"
+        />
+      </div>
+
       {/* Absolute Header Settings Bar */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-40">
         <button
@@ -162,10 +194,12 @@ export default function Landing() {
         
         {/* Header */}
         <header className="flex flex-col items-center text-center mb-12 md:mb-16">
-          {/* Logo Frame */}
-          <div className="relative w-14 h-14 md:w-20 md:h-20 rounded-full bg-white dark:bg-zinc-900 p-0.5 border border-zinc-250/90 dark:border-zinc-800 shadow-3xs mb-4">
+          {/* Main Header Logo (Enlarged, Border-free, Fades out on scroll) */}
+          <div className={`relative w-24 h-24 md:w-36 md:h-36 mb-4 transition-opacity duration-300 ease-out ${
+            scrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}>
             <img 
-              src={festInfo.logo} 
+              src={`${festInfo.logo}?v=2`} 
               alt={`${festInfo.title} Logo`}
               className="w-full h-full object-cover rounded-full"
               onError={(e) => {
@@ -179,23 +213,23 @@ export default function Landing() {
           </div>
           
           {/* Title */}
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-950 dark:text-zinc-50 font-heading leading-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-955 dark:text-zinc-50 font-heading leading-tight mb-2">
             {festInfo.title}
-            <span className="block text-sm md:text-base font-medium text-zinc-500 dark:text-zinc-400 tracking-normal mt-1 font-sans">
+            <span className="block text-xs sm:text-sm md:text-base font-medium text-zinc-500 dark:text-zinc-400 tracking-normal mt-1 font-sans">
               {festInfo.edition}
             </span>
           </h1>
 
           {/* Schedule Tags */}
-          <div className="flex items-center justify-center gap-3 text-zinc-500 dark:text-zinc-400 text-sm mt-3">
-            <span className="flex items-center gap-1 font-semibold">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 text-xs sm:text-sm mt-3 text-zinc-500 dark:text-zinc-400">
+            <span className="flex items-center gap-1.5 font-semibold">
               <Calendar size={12} />
               <span>{formatDate()}</span>
             </span>
-            <span className="text-zinc-200 dark:text-zinc-800">|</span>
-            <span className="flex items-center gap-1 font-semibold">
+            <span className="hidden sm:inline text-zinc-250 dark:text-zinc-800">|</span>
+            <span className="flex items-center gap-1.5 font-semibold">
               <Clock size={12} />
-              <span>8:30 AM &mdash; 4:00 PM</span>
+              <span>{festInfo.timeSpan}</span>
             </span>
           </div>
 
@@ -211,36 +245,33 @@ export default function Landing() {
         {/* Filters & Timetable */}
         <main className="flex-1 w-full mb-16">
           
-          {/* Search & Tabs Filter Bar */}
-          <div className="mb-10 flex flex-col gap-6">
-            <div className="relative">
-              <Search className="absolute left-0 top-3 text-zinc-455 dark:text-zinc-500" size={15} />
-              <input 
-                type="text" 
-                placeholder="Search events..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-zinc-955 dark:text-zinc-50 placeholder-zinc-400 dark:placeholder-zinc-600 text-sm pl-7 pr-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-zinc-100 transition-all outline-none"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-6 text-sm">
-              {['All', 'Started', 'Upcoming', 'Ended'].map((status) => {
-                const isActive = statusFilter === status;
-                const count = status === 'All' 
+          {/* Tabs Filter Bar */}
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm">
+              {['All', 'Live', 'Upcoming', 'Ended'].map((tabLabel) => {
+                const statusVal = tabLabel === 'Live' ? 'Started' : tabLabel;
+                const isActive = statusFilter === statusVal;
+                const count = statusVal === 'All' 
                   ? events.length 
-                  : events.filter(e => e.status === status).length;
+                  : events.filter(e => e.status === statusVal).length;
                 return (
                   <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`font-semibold pb-1 border-b-2 transition-all cursor-pointer ${
+                    key={tabLabel}
+                    onClick={() => setStatusFilter(statusVal)}
+                    className={`font-semibold pb-1 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
                       isActive 
                         ? 'border-zinc-955 dark:border-zinc-50 text-zinc-955 dark:text-zinc-50' 
                         : 'border-transparent text-zinc-450 hover:text-zinc-800 dark:hover:text-zinc-200'
                     }`}
                   >
-                    {status} <span className="text-xs font-normal opacity-70 ml-0.5">({count})</span>
+                    {tabLabel === 'Live' && count > 0 && (
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-650"></span>
+                      </span>
+                    )}
+                    <span>{tabLabel}</span>
+                    <span className="text-xs font-normal opacity-70 ml-0.5">({count})</span>
                   </button>
                 );
               })}
@@ -277,7 +308,7 @@ export default function Landing() {
               </button>
             </div>
           ) : filteredEvents.length > 0 ? (
-            <Timeline events={filteredEvents} sheetOverrides={[]} />
+            <Timeline events={filteredEvents} onEventClick={(event) => setActiveBottomSheetEvent(event)} />
           ) : (
             <div className="border border-zinc-200 dark:border-zinc-800 text-center rounded-xl p-8 flex flex-col items-center justify-center">
               <h3 className="font-heading font-bold text-zinc-800 dark:text-zinc-455 text-xs">No matching events</h3>
@@ -287,7 +318,7 @@ export default function Landing() {
         </main>
 
         {/* Footer */}
-        <footer className="w-full flex flex-col items-center gap-8 border-t border-zinc-200 dark:border-zinc-850 pt-8 mt-auto">
+        <footer className="w-full flex flex-col items-center gap-8 border-t border-zinc-200 dark:border-zinc-800 pt-8 mt-auto">
           
           {/* Global Support Contacts */}
           <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left text-xs text-zinc-500 dark:text-zinc-400">
@@ -309,14 +340,14 @@ export default function Landing() {
             {events.length > 0 && events.every(e => e.status === 'Ended') && (
               <Link 
                 to="/thank-you" 
-                className="inline-flex items-center gap-1 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-955 rounded-lg text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-2xs"
+                className="inline-flex items-center gap-1 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 rounded-lg text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-2xs"
               >
                 <span>Go to Wrap-up Page</span>
               </Link>
             )}
             
             <p className="text-[10px] text-zinc-450 dark:text-zinc-550 text-center font-medium">
-              Copyright &copy; @helloworld2k26
+              {festInfo.copyright}
             </p>
           </div>
 
@@ -379,6 +410,12 @@ export default function Landing() {
             </div>
           )}
         </footer>
+
+        {/* Dynamic Bottom Sheet Details Overlay */}
+        <BottomSheet 
+          event={activeBottomSheetEvent} 
+          onClose={() => setActiveBottomSheetEvent(null)} 
+        />
 
       </div>
     </div>

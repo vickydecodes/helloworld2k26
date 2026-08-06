@@ -24,7 +24,7 @@ body {
 }
 
 html.dark body {
-  background-color: #09090B;
+  background-color: #000000;
   color: #F4F4F5;
 }
 
@@ -45,6 +45,36 @@ h1, h2, h3, h4, h5, h6 {
   border-color: #D4D4D8; /* Zinc-300 */
   box-shadow: 0 4px 12px -2px rgba(24, 24, 27, 0.04);
   transform: translateY(-1px);
+}
+
+html.dark .editorial-card {
+  background-color: #0A0A0C; /* Rich charcoal black */
+  border-color: #1F1F22; /* Darker border */
+}
+
+html.dark .editorial-card:hover {
+  border-color: #2E2E33;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.6);
+}
+
+/* Dynamic glow effect for the active Live event card */
+@keyframes borderGlow {
+  0%, 100% {
+    border-color: rgba(184, 144, 71, 0.3);
+    box-shadow: 0 0 6px rgba(184, 144, 71, 0.08);
+  }
+  50% {
+    border-color: rgba(184, 144, 71, 0.95);
+    box-shadow: 0 0 16px rgba(184, 144, 71, 0.3);
+  }
+}
+
+.animate-live-glow {
+  animation: borderGlow 2s infinite ease-in-out;
+}
+
+html.dark .animate-live-glow {
+  animation: borderGlow 2s infinite ease-in-out;
 }
 
 /* Custom Minimalist Scrollbar */

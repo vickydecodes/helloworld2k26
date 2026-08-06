@@ -4,6 +4,23 @@ import { festInfo } from '../data';
 // Swappable Google Sheet Published CSV URL
 export const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnE7guFDY4V6Wjaj3Zpd_sdDEM-ydhA-8gD8hs-ZuHc-hXZ5ZYg0HgaZxK7p1KcTCy2xdSWOd8GouI/pub?output=csv";
 
+/**
+ * Helper to convert Google Sheets editable sharing links into clean export CSV URLs.
+ * Bypasses the 5-minute CDN cache of published (/pub) URLs.
+ */
+export function getCleanFetchUrl(url) {
+  if (!url) return '';
+  const clean = url.trim();
+  const editMatch = clean.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (editMatch && !clean.includes('/e/')) {
+    const spreadsheetId = editMatch[1];
+    const rawExportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+    // Route through public AllOrigins CORS proxy to bypass CORS and force real-time fetches
+    return `https://api.allorigins.win/raw?url=${encodeURIComponent(rawExportUrl)}`;
+  }
+  return clean;
+}
+
 // In-memory cache for the live status sheet overrides
 let cachedSheetData = [];
 let lastFetchTime = 0;
@@ -153,7 +170,7 @@ export async function fetchLiveStatus(force = false) {
         id: "ui-ux-design",
         name: "UI/UX Showdown",
         startTime: "13:30",
-        endTime: "15:00",
+        endTime: "19:00",
         type: "event",
         coordinator: "Don Norman",
         phone: "9876543212",
@@ -183,7 +200,8 @@ export async function fetchLiveStatus(force = false) {
   }
 
   try {
-    const fetchUrl = `${GOOGLE_SHEET_CSV_URL}${GOOGLE_SHEET_CSV_URL.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
+    const baseFetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
+    const fetchUrl = `${baseFetchUrl}${baseFetchUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
     const response = await fetch(fetchUrl, {
       cache: 'no-store',
       headers: {

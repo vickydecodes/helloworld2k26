@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import { GOOGLE_SHEET_CSV_URL, getCurrentTime, getMergedEvents, computeEventStatus } from '../lib/sheetStatus';
+import { GOOGLE_SHEET_CSV_URL, getCurrentTime, getMergedEvents, computeEventStatus, getCleanFetchUrl } from '../lib/sheetStatus';
 import { festInfo, events as fallbackEvents } from '../data';
 
 const EventContext = createContext();
@@ -34,7 +34,8 @@ export function EventProvider({ children }) {
     if (isManual) setLoading(true);
     
     try {
-      const fetchUrl = `${GOOGLE_SHEET_CSV_URL}${GOOGLE_SHEET_CSV_URL.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
+      const baseFetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
+      const fetchUrl = `${baseFetchUrl}${baseFetchUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
       
       const response = await fetch(fetchUrl, {
         cache: 'no-store',
@@ -115,35 +116,13 @@ export function EventProvider({ children }) {
     };
   }, []);
 
-  // Sync event statuses ONLY when an event's active status transitions (prevents 1-second animation flickering)
+  // Sync event statuses and CMS sheets data (using JSON comparison to avoid infinite loops and catch all column edits)
   useEffect(() => {
-    if (events.length > 0) {
-      const updated = getMergedEvents(fallbackEvents, rawOverrides);
-      
-      // Check if any status, phase, or metadata changed before committing a state change
-      const hasChanged = updated.some((evt, idx) => {
-        const current = events[idx];
-        return (
-          !current ||
-          current.status !== evt.status ||
-          current.phase !== evt.phase ||
-          current.name !== evt.name ||
-          current.venue !== evt.venue ||
-          current.description !== evt.description
-        );
-      });
-
-      if (hasChanged) {
-        setEvents(updated);
-      }
-    } else {
-      // Set initial values if empty
-      const initial = getMergedEvents(fallbackEvents, rawOverrides);
-      if (initial.length > 0) {
-        setEvents(initial);
-      }
+    const updated = getMergedEvents(fallbackEvents, rawOverrides);
+    if (JSON.stringify(events) !== JSON.stringify(updated)) {
+      setEvents(updated);
     }
-  }, [systemTime, rawOverrides]);
+  }, [systemTime, rawOverrides, events]);
 
   const refresh = () => loadCmsData(true);
 
