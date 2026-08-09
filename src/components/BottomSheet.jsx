@@ -29,11 +29,16 @@ export default function BottomSheet({ event, onClose }) {
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
-    const [hours, minutes] = timeStr.split(':');
+    const clean = timeStr.trim();
+    if (clean.toLowerCase().includes('am') || clean.toLowerCase().includes('pm')) {
+      return clean;
+    }
+    const [hours, minutes] = clean.split(':');
     const h = parseInt(hours, 10);
     const ampm = h >= 12 ? 'PM' : 'AM';
     const displayH = h % 12 || 12;
-    return `${displayH}:${minutes} ${ampm}`;
+    const formattedHours = displayH < 10 ? `0${displayH}` : displayH;
+    return `${formattedHours}:${minutes} ${ampm}`;
   };
 
   const isEnded = event.status === 'Ended';

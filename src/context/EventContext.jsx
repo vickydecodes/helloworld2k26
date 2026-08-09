@@ -29,65 +29,51 @@ export function EventProvider({ children }) {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Function to fetch and parse CMS data from Google Sheet
-  const loadCmsData = async (isManual = false) => {
+  // Function to fetch and parse CMS data from Google Sheet using direct PapaParse download
+  const loadCmsData = (isManual = false) => {
     if (isManual) setLoading(true);
     
-    try {
-      const baseFetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
-      const fetchUrl = `${baseFetchUrl}${baseFetchUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
-      
-      const response = await fetch(fetchUrl, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+    const baseFetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
+    const fetchUrl = `${baseFetchUrl}${baseFetchUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
+    
+    Papa.parse(fetchUrl, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.data && results.data.length > 0) {
+          setRawOverrides(results.data);
+          const merged = getMergedEvents(fallbackEvents, results.data);
+          setEvents(merged);
+          setError(null);
+        } else {
+          setError("No event rows found in the spreadsheet CMS");
         }
-      });
-      if (!response.ok) throw new Error("Could not connect to the Google Sheet CMS");
-      
-      const csvText = await response.text();
-      
-      Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          if (results.data && results.data.length > 0) {
-            setRawOverrides(results.data);
-            const merged = getMergedEvents(fallbackEvents, results.data);
-            setEvents(merged);
-            setError(null);
-          } else {
-            throw new Error("No event rows found in the spreadsheet CMS");
-          }
-          setLoading(false);
-        },
-        error: (err) => {
-          throw new Error("CSV parsing failed: " + err.message);
-        }
-      });
-    } catch (err) {
-      console.warn("CMS Load Error, falling back to static config details:", err.message);
-      setError(err.message);
-      
-      // Fall back to static config ONLY if the network is completely down and no previous state exists
-      setEvents((prev) => {
-        if (prev.length > 0) return prev;
+        setLoading(false);
+      },
+      error: (err) => {
+        console.warn("CMS Load Error, falling back to static config details:", err);
+        setError(err.message || "Failed to download/parse CSV sheet");
         
-        const staticList = fallbackEvents.map(e => {
-          const status = computeEventStatus(e, []);
-          const phase = e.type === 'program' ? '' : (status === 'Started' ? 'Ongoing' : status === 'Ended' ? 'Registrations Closed' : 'Registrations Open');
-          return {
-            ...e,
-            status,
-            phase,
-            winners: []
-          };
+        // Fall back to static config ONLY if no previous state exists
+        setEvents((prev) => {
+          if (prev.length > 0) return prev;
+          
+          const staticList = fallbackEvents.map(e => {
+            const status = computeEventStatus(e, []);
+            const phase = e.type === 'program' ? '' : (status === 'Started' ? 'Ongoing' : status === 'Ended' ? 'Registrations Closed' : 'Registrations Open');
+            return {
+              ...e,
+              status,
+              phase,
+              winners: []
+            };
+          });
+          return staticList.sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
         });
-        return staticList.sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
-      });
-      setLoading(false);
-    }
+        setLoading(false);
+      }
+    });
   };
 
   useEffect(() => {

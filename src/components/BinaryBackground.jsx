@@ -30,7 +30,6 @@ export default function BinaryBackground() {
     let particles = [];
     let globalAngle = 0;
 
-    const gridSpacing = 64; 
     const fontSize = 11;
 
     // Structured concentric slime-blob configurations

@@ -140,9 +140,9 @@ export default function ThankYou() {
                           Time: {event.startTime} &mdash; {event.endTime}
                         </span>
                         {event.venue && (
-                          <span className="flex items-center gap-0.5 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200/40 dark:border-zinc-800/60">
-                            <MapPin size={8} />
-                            <span>{event.venue.split('(')[0].trim()}</span>
+                          <span className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
+                            <MapPin size={10} className="text-zinc-400 dark:text-zinc-650 flex-shrink-0" />
+                            <span>{event.venue}</span>
                           </span>
                         )}
                       </div>

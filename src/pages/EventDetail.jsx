@@ -241,7 +241,7 @@ export default function EventDetail() {
                     let badgeColor = 'bg-zinc-100 text-zinc-650 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-350 dark:border-zinc-700';
                     if (w.rank.toLowerCase().includes('1st')) badgeColor = 'bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 border-amber-200/60 dark:border-amber-900/40 font-semibold';
                     if (w.rank.toLowerCase().includes('2nd')) badgeColor = 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 font-semibold';
-                    if (w.rank.toLowerCase().includes('3rd')) badgeColor = 'bg-[#FAF7EE] dark:bg-zinc-800/40 text-[#8E6E32] dark:text-[#B89047] border-accent/15 dark:border-accent/10 font-semibold';
+                    if (w.rank.toLowerCase().includes('3rd')) badgeColor = 'bg-accent-light dark:bg-accent/10 text-accent-dark dark:text-accent border-accent/20 dark:border-accent/10 font-semibold';
                     
                     return (
                       <div key={idx} className="bg-white dark:bg-zinc-900 border border-zinc-150/60 dark:border-zinc-800 rounded p-3.5 flex flex-col items-center text-center">

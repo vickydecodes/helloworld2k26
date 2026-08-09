@@ -172,8 +172,8 @@ export default function Landing() {
         />
       </div>
 
-      {/* Absolute Header Settings Bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-40">
+      {/* Desktop Theme Toggle (Absolute Corner) */}
+      <div className="hidden md:flex absolute top-4 right-4 items-center gap-2 z-40">
         <button
           onClick={toggleTheme}
           className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-955 dark:hover:text-white transition-all shadow-3xs cursor-pointer"
@@ -185,13 +185,24 @@ export default function Landing() {
 
       {/* Static Announcement Banner (Muted & Clean) */}
       {announcement && (
-        <div className="w-full bg-[#FAF7EE] dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-[#8E6E32] dark:text-[#B89047] py-2.5 text-center text-xs font-semibold tracking-wide">
+        <div className="w-full bg-accent-light dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-accent-dark dark:text-accent py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed break-words">
           <span>{announcement}</span>
         </div>
       )}
 
       <div className="w-full max-w-3xl mx-auto px-6 py-8 md:py-16 flex-1 flex flex-col justify-between">
         
+        {/* Mobile Theme Toggle Row (Inline Flow) */}
+        <div className="w-full flex justify-end mb-4 md:hidden z-40">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-955 dark:hover:text-white transition-all shadow-3xs cursor-pointer"
+            aria-label="Toggle Theme"
+          >
+            {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+        </div>
+
         {/* Header */}
         <header className="flex flex-col items-center text-center mb-12 md:mb-16">
           {/* Main Header Logo (Enlarged, Border-free, Fades out on scroll) */}
@@ -241,6 +252,8 @@ export default function Landing() {
             </div>
           )}
         </header>
+
+
 
         {/* Filters & Timetable */}
         <main className="flex-1 w-full mb-16">

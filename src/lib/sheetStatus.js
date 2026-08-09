@@ -1,22 +1,34 @@
 import Papa from 'papaparse';
 import { festInfo } from '../data';
 
-// Swappable Google Sheet Published CSV URL
-export const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnE7guFDY4V6Wjaj3Zpd_sdDEM-ydhA-8gD8hs-ZuHc-hXZ5ZYg0HgaZxK7p1KcTCy2xdSWOd8GouI/pub?output=csv";
+// Swappable Google Sheet URL (configure with editor URL for instant CORS-safe live data, or pub URL)
+export const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSWacQP4BRUk2jHkSzc6FcrFZe3ZrSaDXmcbyGP2SXDoUbB6F3AWaZS2ptkIXEy-Hl2PNYzMtxqsI5h/pubhtml?gid=470805613";
 
 /**
- * Helper to convert Google Sheets editable sharing links into clean export CSV URLs.
- * Bypasses the 5-minute CDN cache of published (/pub) URLs.
+ * Helper to convert Google Sheets editable sharing links or published HTML links into clean export CSV URLs.
  */
 export function getCleanFetchUrl(url) {
   if (!url) return '';
-  const clean = url.trim();
-  const editMatch = clean.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (editMatch && !clean.includes('/e/')) {
+  let clean = url.trim();
+  
+  let gid = '0';
+  const gidMatch = clean.match(/[?&#]gid=([0-9]+)/);
+  if (gidMatch && gidMatch[1]) {
+    gid = gidMatch[1];
+  }
+  
+  // Use Google Sheets Visualization Query API for CORS-friendly, un-cached, instant live CSV export
+  const editMatch = clean.match(/\/spreadsheets\/d\/([^/]+)/);
+  if (editMatch && editMatch[1] && !clean.includes('/e/')) {
     const spreadsheetId = editMatch[1];
-    const rawExportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
-    // Route through public AllOrigins CORS proxy to bypass CORS and force real-time fetches
-    return `https://api.allorigins.win/raw?url=${encodeURIComponent(rawExportUrl)}`;
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  }
+  
+  if (clean.includes('/spreadsheets/d/e/')) {
+    const match = clean.match(/\/spreadsheets\/d\/e\/([^/]+)/);
+    if (match && match[1]) {
+      return `https://docs.google.com/spreadsheets/d/e/${match[1]}/pub?output=csv&gid=${gid}`;
+    }
   }
   return clean;
 }
@@ -52,7 +64,7 @@ export function parseDateTime(dateStr, timeStr) {
         const m = parseInt(parts[1], 10) - 1; // 0-indexed
         const d = parseInt(parts[2], 10);
 
-        if (!isNaN(y)) year = y < 100 ? 2000 + y : y;
+        if (!isNaN(y)) year = y < 105 ? 2000 + y : y;
         if (!isNaN(m)) month = m;
         if (!isNaN(d)) day = d;
       } else {
@@ -78,7 +90,7 @@ export function parseDateTime(dateStr, timeStr) {
 
         // Handle 2-digit years (e.g. 26 -> 2026) to prevent 1st Century AD dates
         if (!isNaN(y)) {
-          year = y < 100 ? 2000 + y : y;
+          year = y < 105 ? 2000 + y : y;
         }
       }
     }
@@ -88,12 +100,26 @@ export function parseDateTime(dateStr, timeStr) {
   let minutes = 0;
 
   if (timeStr) {
-    const timeParts = timeStr.trim().split(':');
+    const cleanTime = timeStr.trim().toLowerCase();
+    const isPM = cleanTime.includes('pm');
+    const isAM = cleanTime.includes('am');
+    
+    // Strip out AM/PM text to parse numbers
+    const numericPart = cleanTime.replace(/[ap]m/, '').trim();
+    const timeParts = numericPart.split(':');
+    
     if (timeParts.length >= 2) {
-      const h = parseInt(timeParts[0], 10);
+      let h = parseInt(timeParts[0], 10);
       const m = parseInt(timeParts[1], 10);
-      if (!isNaN(h)) hours = h;
-      if (!isNaN(m)) minutes = m;
+      
+      if (!isNaN(h)) {
+        if (isPM && h < 12) h += 12;
+        if (isAM && h === 12) h = 0;
+        hours = h;
+      }
+      if (!isNaN(m)) {
+        minutes = m;
+      }
     }
   }
 
@@ -200,21 +226,11 @@ export async function fetchLiveStatus(force = false) {
   }
 
   try {
-    const baseFetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
-    const fetchUrl = `${baseFetchUrl}${baseFetchUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
-    const response = await fetch(fetchUrl, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
-    });
-    if (!response.ok) throw new Error("Failed to fetch Google Sheet CSV");
-    
-    const csvText = await response.text();
+    const fetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
     
     return new Promise((resolve, reject) => {
-      Papa.parse(csvText, {
+      Papa.parse(fetchUrl, {
+        download: true,
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
@@ -227,6 +243,7 @@ export async function fetchLiveStatus(force = false) {
           }
         },
         error: (error) => {
+          console.error("Error parsing live status sheet:", error);
           reject(error);
         }
       });
@@ -270,20 +287,27 @@ export function computeEventStatus(staticEvent, sheetOverrides = []) {
     if (statusClean === 'ended') return 'Ended';
   }
 
-  const dateStr = (override && override.date) ? override.date : festInfo.date;
-  const startStr = (override && override.startTime) ? override.startTime : staticEvent.startTime;
+  // Explicit manual isLive control (either spreadsheet column or static fallback config)
+  if (override && override.isLive !== undefined) {
+    if (override.isLive.trim().toLowerCase() === 'true') {
+      return 'Started';
+    }
+  } else if (!override && staticEvent.isLive === true) {
+    return 'Started';
+  }
+
+  const dateStr = (override && override.date) ? override.date : staticEvent.date;
   const endStr = (override && override.endTime) ? override.endTime : staticEvent.endTime;
 
-  const startDate = parseDateTime(dateStr, startStr);
   const endDate = parseDateTime(dateStr, endStr);
   const now = getCurrentTime();
 
-  if (now < startDate.getTime()) {
-    return 'Upcoming';
-  } else if (now >= startDate.getTime() && now < endDate.getTime()) {
-    return 'Started';
-  } else {
+  // If the clock passes the end time, the event is naturally Ended.
+  // Otherwise (even if clock passed start time), it remains Upcoming until explicitly set isLive=true.
+  if (now >= endDate.getTime()) {
     return 'Ended';
+  } else {
+    return 'Upcoming';
   }
 }
 
@@ -364,16 +388,33 @@ function getDefaultPhase(status) {
  * Combines static configuration and dynamic sheet data to build the final list.
  */
 export function getMergedEvents(staticEvents, sheetOverrides = []) {
-  const mergedList = [];
-
-  for (const staticEvent of staticEvents) {
-    mergedList.push(getMergedEventData(staticEvent, sheetOverrides));
+  // If spreadsheet overrides are empty, return the static fallback events list
+  if (!sheetOverrides || sheetOverrides.length === 0) {
+    return staticEvents.map(e => {
+      const status = computeEventStatus(e, []);
+      const phase = e.type === 'program' ? '' : (status === 'Started' ? 'Ongoing' : status === 'Ended' ? 'Registrations Closed' : 'Registrations Open');
+      return {
+        ...e,
+        status,
+        phase,
+        winners: []
+      };
+    }).sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
   }
+
+  const mergedList = [];
 
   for (const row of sheetOverrides) {
     if (!row.id) continue;
-    const existsInStatic = staticEvents.some(e => e.id === row.id);
-    if (!existsInStatic) {
+    
+    // Find matching static event defaults, if any
+    const staticEvent = staticEvents.find(e => e.id === row.id);
+    
+    if (staticEvent) {
+      // Merge spreadsheet overrides with static default values
+      mergedList.push(getMergedEventData(staticEvent, sheetOverrides));
+    } else {
+      // Build a completely new event from the spreadsheet row
       const newEvent = {
         index: row.index !== undefined && row.index !== "" ? parseInt(row.index, 10) : 999,
         id: row.id,
@@ -416,5 +457,40 @@ export function getMergedEvents(staticEvents, sheetOverrides = []) {
   }
 
   // Sort ascending by index, and use startTime as a fallback tie-breaker
-  return mergedList.sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
+  const sortedList = mergedList.sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
+
+  // Map events to use visually formatted 12-hour time strings
+  return sortedList.map(e => ({
+    ...e,
+    startTime: formatTime12Hour(e.startTime),
+    endTime: formatTime12Hour(e.endTime)
+  }));
+}
+
+/**
+ * Formats a 24-hour time string (e.g., "14:00" or "9:30") into a 12-hour format string (e.g., "02:00 PM" or "09:30 AM")
+ */
+export function formatTime12Hour(timeStr) {
+  if (!timeStr) return '';
+  const clean = timeStr.trim();
+  
+  // Return immediately if already formatted
+  if (clean.toLowerCase().includes('am') || clean.toLowerCase().includes('pm')) {
+    return clean;
+  }
+  
+  const parts = clean.split(':');
+  if (parts.length < 2) return clean;
+  
+  let hours = parseInt(parts[0], 10);
+  let minutes = parts[1].slice(0, 2);
+  
+  if (isNaN(hours)) return clean;
+  
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // 0 should be 12
+  
+  const formattedHours = hours < 10 ? `0${hours}` : hours;
+  return `${formattedHours}:${minutes} ${ampm}`;
 }

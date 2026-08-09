@@ -7,9 +7,9 @@
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-heading: 'Space Grotesk', system-ui, sans-serif;
-  --color-accent: #B89047; /* Elegant old gold/champagne */
-  --color-accent-light: #F7F5F0;
-  --color-accent-dark: #8E6E32;
+  --color-accent: #8E6E32; /* Rich premium golden-bronze brown */
+  --color-accent-light: #F5EFEB; /* Soft champagne cream */
+  --color-accent-dark: #5D4416; /* Deep chocolate-bronze brown */
 }
 
 body {
@@ -102,4 +102,18 @@ html.dark ::-webkit-scrollbar-thumb {
 
 html.dark ::-webkit-scrollbar-thumb:hover {
   background: #3F3F46; /* Zinc-700 */
+}
+
+/* Background grid pattern */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(142, 110, 50, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(142, 110, 50, 0.04) 1px, transparent 1px);
+}
+
+html.dark .bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
