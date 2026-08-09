@@ -44,7 +44,7 @@ export function EventProvider({ children }) {
         if (results.data && results.data.length > 0) {
           setRawOverrides(results.data);
           const merged = getMergedEvents(fallbackEvents, results.data);
-          setEvents(merged);
+          // setEvents(merged);
           setError(null);
         } else {
           setError("No event rows found in the spreadsheet CMS");
@@ -56,21 +56,7 @@ export function EventProvider({ children }) {
         setError(err.message || "Failed to download/parse CSV sheet");
         
         // Fall back to static config ONLY if no previous state exists
-        setEvents((prev) => {
-          if (prev.length > 0) return prev;
-          
-          const staticList = fallbackEvents.map(e => {
-            const status = computeEventStatus(e, []);
-            const phase = e.type === 'program' ? '' : (status === 'Started' ? 'Ongoing' : status === 'Ended' ? 'Registrations Closed' : 'Registrations Open');
-            return {
-              ...e,
-              status,
-              phase,
-              winners: []
-            };
-          });
-          return staticList.sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
-        });
+        
         setLoading(false);
       }
     });
