@@ -10,6 +10,24 @@
   --color-accent: #8E6E32; /* Rich premium golden-bronze brown */
   --color-accent-light: #F5EFEB; /* Soft champagne cream */
   --color-accent-dark: #5D4416; /* Deep chocolate-bronze brown */
+
+  --animate-gold-shine: gold-shine 6s ease infinite;
+  --animate-float-slow: float-slow 4s ease-in-out infinite;
+  --animate-terminal-blink: terminal-blink 1s step-end infinite;
+
+  @keyframes gold-shine {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+  @keyframes terminal-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
 }
 
 body {

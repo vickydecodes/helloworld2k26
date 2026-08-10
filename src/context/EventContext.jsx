@@ -1,15 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import Papa from 'papaparse';
-import { GOOGLE_SHEET_CSV_URL, getCurrentTime, getMergedEvents, computeEventStatus, getCleanFetchUrl } from '../lib/sheetStatus';
-import { festInfo, events as fallbackEvents } from '../data';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { getCurrentTime, computeEventStatus } from '../lib/sheetStatus';
+import { events as rawEvents } from '../../events';
 
 const EventContext = createContext();
 
 export function EventProvider({ children }) {
-  const [events, setEvents] = useState([]);
-  const [rawOverrides, setRawOverrides] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [systemTime, setSystemTime] = useState(getCurrentTime());
   
   const [theme, setTheme] = useState(() => {
@@ -29,47 +24,36 @@ export function EventProvider({ children }) {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Function to fetch and parse CMS data from Google Sheet using direct PapaParse download
-  const loadCmsData = (isManual = false) => {
-    if (isManual) setLoading(true);
-    
-    const baseFetchUrl = getCleanFetchUrl(GOOGLE_SHEET_CSV_URL);
-    const fetchUrl = `${baseFetchUrl}${baseFetchUrl.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
-    
-    Papa.parse(fetchUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.data && results.data.length > 0) {
-          setRawOverrides(results.data);
-          const merged = getMergedEvents(fallbackEvents, results.data);
-          // setEvents(merged);
-          setError(null);
-        } else {
-          setError("No event rows found in the spreadsheet CMS");
-        }
-        setLoading(false);
-      },
-      error: (err) => {
-        console.warn("CMS Load Error, falling back to static config details:", err);
-        setError(err.message || "Failed to download/parse CSV sheet");
-        
-        // Fall back to static config ONLY if no previous state exists
-        
-        setLoading(false);
+  // Compute the merged events list on-the-fly statically (no network downloads, no caching)
+  const events = useMemo(() => {
+    return rawEvents.map(e => {
+      // 1. Calculate default status based on system clock (startTime & endTime)
+      const status = computeEventStatus(e, []);
+      
+      // 2. Resolve status based on isLive or explicit overrides defined in events.jsx
+      let finalStatus = status;
+      if (e.status) {
+        finalStatus = e.status;
+      } else if (e.isLive === true) {
+        finalStatus = 'Started';
       }
-    });
-  };
+
+      // 3. Resolve phase based on explicit overrides or calculate automatically
+      let finalPhase = e.phase;
+      if (!finalPhase) {
+        finalPhase = e.type === 'program' ? '' : (finalStatus === 'Started' ? 'Ongoing' : finalStatus === 'Ended' ? 'Registrations Closed' : 'Registrations Open');
+      }
+
+      return {
+        ...e,
+        status: finalStatus,
+        phase: finalPhase,
+        winners: e.winners || []
+      };
+    }).sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
+  }, [systemTime]);
 
   useEffect(() => {
-    loadCmsData();
-
-    // Central 10-second Google Sheet polling
-    const pollInterval = setInterval(() => {
-      loadCmsData();
-    }, 10000);
-
     // Central clock ticker (ticks every second, handles mock timeline travel)
     const clockInterval = setInterval(() => {
       setSystemTime(getCurrentTime());
@@ -82,24 +66,26 @@ export function EventProvider({ children }) {
     window.addEventListener('popstate', handlePopState);
 
     return () => {
-      clearInterval(pollInterval);
       clearInterval(clockInterval);
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
-  // Sync event statuses and CMS sheets data (using JSON comparison to avoid infinite loops and catch all column edits)
-  useEffect(() => {
-    const updated = getMergedEvents(fallbackEvents, rawOverrides);
-    if (JSON.stringify(events) !== JSON.stringify(updated)) {
-      setEvents(updated);
-    }
-  }, [systemTime, rawOverrides, events]);
-
-  const refresh = () => loadCmsData(true);
+  const refresh = () => {
+    console.log("Static events refreshed");
+  };
 
   return (
-    <EventContext.Provider value={{ events, loading, error, systemTime, refresh, theme, toggleTheme }}>
+    <EventContext.Provider value={{ 
+      events, 
+      loading: false, 
+      syncing: false, 
+      error: null, 
+      systemTime, 
+      refresh, 
+      theme, 
+      toggleTheme 
+    }}>
       {children}
     </EventContext.Provider>
   );

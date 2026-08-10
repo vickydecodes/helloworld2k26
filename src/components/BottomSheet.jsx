@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { X, MapPin, Clock, Phone, Award } from 'lucide-react';
+import { X, MapPin, Clock, Phone, Award, Calendar } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import PhaseBadge from './PhaseBadge';
+import { getGoogleCalendarLink } from '../lib/sheetStatus';
 
 export default function BottomSheet({ event, onClose }) {
   const [mounted, setMounted] = useState(false);
@@ -64,14 +65,20 @@ export default function BottomSheet({ event, onClose }) {
 
         {/* Sticky Header block */}
         <div className="px-6 pb-4 border-b border-zinc-150 dark:border-zinc-850 flex justify-between items-start gap-4 flex-shrink-0">
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {!isEnded && event.phase && <PhaseBadge phase={event.phase} />}
-              <StatusBadge status={event.status} />
-            </div>
+          <div className="space-y-2 flex-1 min-w-0">
             <h2 className="text-xl md:text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 font-heading">
               {event.name}
             </h2>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!isEnded && (
+                Array.isArray(event.phases) && event.phases.length > 0 ? (
+                  event.phases.map((p, pIdx) => <PhaseBadge key={pIdx} phase={p} />)
+                ) : (
+                  event.phase ? <PhaseBadge phase={event.phase} /> : null
+                )
+              )}
+              <StatusBadge status={event.status} />
+            </div>
           </div>
           <button 
             onClick={onClose}
@@ -87,12 +94,25 @@ export default function BottomSheet({ event, onClose }) {
           
           {/* Times and Venue card elements */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl p-4 space-y-1.5">
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider block">Timings</span>
-              <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200 text-sm font-semibold">
-                <Clock size={14} className="text-zinc-400 dark:text-zinc-650" />
-                <span>{formatTime(event.startTime)} &mdash; {formatTime(event.endTime)}</span>
+            <div className="bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl p-4 space-y-2.5 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider block">Timings</span>
+                <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200 text-sm font-semibold mt-1">
+                  <Clock size={14} className="text-zinc-400 dark:text-zinc-650" />
+                  <span>{formatTime(event.startTime)} &mdash; {formatTime(event.endTime)}</span>
+                </div>
               </div>
+              {!isEnded && (
+                <a 
+                  href={getGoogleCalendarLink(event)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 dark:bg-accent/20 hover:bg-accent/20 dark:hover:bg-accent/30 text-accent dark:text-[#F3C63F] border border-accent/20 dark:border-accent/40 rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-3xs w-fit select-none"
+                >
+                  <Calendar size={11} />
+                  <span>Add to Calendar</span>
+                </a>
+              )}
             </div>
             {event.venue && (
               <div className="bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl p-4 space-y-1.5">
@@ -179,10 +199,10 @@ export default function BottomSheet({ event, onClose }) {
               </div>
               {event.phone && (
                 <a 
-                  href={`tel:${event.phone}`}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-855 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-700 dark:text-zinc-300 font-semibold transition-all cursor-pointer w-fit"
+                  href={`tel:${event.phone.replace(/\s+/g, '')}`}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent/10 hover:bg-accent/20 dark:bg-[#F3C63F] hover:dark:bg-[#E5B82F] border border-accent/25 dark:border-transparent rounded-lg text-accent-dark dark:text-zinc-950 font-bold transition-all cursor-pointer w-fit"
                 >
-                  <Phone size={12} />
+                  <Phone size={12} className="text-accent-dark dark:text-zinc-950" />
                   <span>{event.phone}</span>
                 </a>
               )}
