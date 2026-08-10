@@ -1,8 +1,8 @@
 export const festInfo = {
-  title: "<HELLO WORLD />",
+  title: "Hello World",
   edition: "26-27 Edition",
-  date: "10-Aug-2026",
-  formattedDate: "Monday, August 10, 2026",
+  date: "13-Aug-2026",
+  formattedDate: "Thursday, August 13, 2026",
   timeSpan: "09:30 AM — 04:30 PM",
   logo: "/assets/logo.png",
   supportPhone: "+91 99999 88888",

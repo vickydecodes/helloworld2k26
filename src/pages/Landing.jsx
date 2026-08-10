@@ -20,6 +20,7 @@ export default function Landing() {
   // Countdown details
   const [countdownText, setCountdownText] = useState('');
   const [countdownTargetName, setCountdownTargetName] = useState('');
+  const [parallelEventsModal, setParallelEventsModal] = useState(null);
 
   // Sync title tag & scroll listener
   useEffect(() => {
@@ -42,13 +43,20 @@ export default function Landing() {
     if (events.length === 0) return;
 
     const upcoming = events.filter(e => e.status === 'Upcoming');
-    const live = events.filter(e => e.status === 'Started'); // maps to Started state
+    const live = events.filter(e => e.status === 'Started');
     
     if (live.length > 0) {
       const active = live[0];
       const parts = active.endTime.split(':');
       const targetDate = new Date(systemTime);
-      targetDate.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+      
+      let h = parseInt(parts[0], 10);
+      const isPM = active.endTime.toLowerCase().includes('pm') && h < 12;
+      const isAM = active.endTime.toLowerCase().includes('am') && h === 12;
+      if (isPM) h += 12;
+      if (isAM) h = 0;
+      
+      targetDate.setHours(h, parseInt(parts[1], 10), 0, 0);
       
       const diff = targetDate.getTime() - systemTime;
       if (diff > 0) {
@@ -61,11 +69,25 @@ export default function Landing() {
       const next = upcoming[0];
       const parts = next.startTime.split(':');
       const targetDate = new Date(systemTime);
-      targetDate.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+      
+      let h = parseInt(parts[0], 10);
+      const isPM = next.startTime.toLowerCase().includes('pm') && h < 12;
+      const isAM = next.startTime.toLowerCase().includes('am') && h === 12;
+      if (isPM) h += 12;
+      if (isAM) h = 0;
+      
+      targetDate.setHours(h, parseInt(parts[1], 10), 0, 0);
       
       const diff = targetDate.getTime() - systemTime;
       if (diff > 0) {
-        setCountdownTargetName(`${next.name} starts`);
+        // Group concurrent upcoming events for countdown name
+        const concurrent = upcoming.filter(e => e.startTime === next.startTime);
+        if (concurrent.length > 1) {
+          const names = concurrent.map(e => e.name).join(' & ');
+          setCountdownTargetName(`${names} start`);
+        } else {
+          setCountdownTargetName(`${next.name} starts`);
+        }
         setCountdownText(formatDiff(diff));
       } else {
         setCountdownText('');
@@ -84,20 +106,36 @@ export default function Landing() {
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
-  // Build announcements for static banner (no scroll)
-  const getAnnouncementText = () => {
-    if (events.length === 0) return '';
+  // Build announcements for static banner (groups concurrent/overlapping events)
+  const getBannerData = () => {
+    if (events.length === 0) return null;
+    
     const live = events.filter(e => e.status === 'Started');
     if (live.length > 0) {
-      const active = live[0];
-      return `${active.name} is active at ${active.venue.split('(')[0].trim()}.`;
+      const baseStartTime = live[0].startTime;
+      const grouped = live.filter(e => e.startTime === baseStartTime);
+      if (grouped.length > 1) {
+        const text = `Live now: ${grouped.map(e => `${e.name} (in ${e.venue.split('(')[0].trim()})`).join(' & ')} are active.`;
+        return { type: 'live', text, list: grouped, startTime: baseStartTime };
+      } else {
+        const active = live[0];
+        return { type: 'single-live', text: `${active.name} is active at ${active.venue.split('(')[0].trim()}.`, event: active };
+      }
     }
+    
     const upcoming = events.filter(e => e.status === 'Upcoming');
     if (upcoming.length > 0) {
       const next = upcoming[0];
-      return `Next event: ${next.name} starts at ${next.startTime} in ${next.venue.split('(')[0].trim()}.`;
+      const grouped = upcoming.filter(e => e.startTime === next.startTime);
+      if (grouped.length > 1) {
+        const text = `Next events: ${grouped.map(e => `${e.name} (in ${e.venue.split('(')[0].trim()})`).join(' & ')} start at ${next.startTime}.`;
+        return { type: 'upcoming', text, list: grouped, startTime: next.startTime };
+      } else {
+        return { type: 'single-upcoming', text: `Next event: ${next.name} starts at ${next.startTime} in ${next.venue.split('(')[0].trim()}.`, event: next };
+      }
     }
-    return '';
+    
+    return null;
   };
 
   // Filter events based on search query & selected status tab
@@ -149,8 +187,8 @@ export default function Landing() {
     </div>
   );
 
-  const announcement = getAnnouncementText();
-  const mainLogoTopClass = announcement ? 'top-24 md:top-30' : 'top-12 md:top-18';
+  const bannerData = getBannerData();
+  const mainLogoTopClass = bannerData ? 'top-24 md:top-30' : 'top-12 md:top-18';
 
   return (
     <div className="flex-1 w-full flex flex-col justify-between relative">
@@ -183,11 +221,22 @@ export default function Landing() {
         </button>
       </div>
 
-      {/* Static Announcement Banner (Muted & Clean) */}
-      {announcement && (
-        <div className="w-full bg-accent-light dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-accent-dark dark:text-accent py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed break-words">
-          <span>{announcement}</span>
-        </div>
+      {/* Static Announcement Banner (Supports clickable parallel events modal) */}
+      {bannerData && (
+        bannerData.list ? (
+          <button 
+            onClick={() => setParallelEventsModal(bannerData)}
+            className="w-full bg-accent-light dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-accent-dark dark:text-accent py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed break-words hover:bg-accent-light/80 dark:hover:bg-zinc-900/40 transition-colors flex items-center justify-center gap-1.5 cursor-pointer border-x-0 border-t-0"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse flex-shrink-0"></span>
+            <span>{bannerData.text}</span>
+            <span className="underline text-[10px] ml-1 opacity-90 hover:opacity-100 font-bold">[View Details]</span>
+          </button>
+        ) : (
+          <div className="w-full bg-accent-light dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-accent-dark dark:text-accent py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed break-words">
+            <span>{bannerData.text}</span>
+          </div>
+        )
       )}
 
       <div className="w-full max-w-3xl mx-auto px-6 py-8 md:py-16 flex-1 flex flex-col justify-between">
@@ -223,13 +272,32 @@ export default function Landing() {
             </div>
           </div>
           
+          {/* Institution & Department Branding */}
+          <div className="flex flex-col items-center text-center space-y-1 mb-8 max-w-xl px-4">
+            <span className="font-extrabold uppercase text-zinc-800 dark:text-zinc-200 tracking-widest text-[10px] sm:text-xs md:text-sm leading-snug">
+              ST. JOSEPH S COLLEGE OF ARTS & SCIENCE (AUTONOMOUS)
+            </span>
+            <span className="font-semibold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider text-[9px] sm:text-[10px] md:text-xs">
+              CUDDALORE - 607 001.
+            </span>
+            <span className="text-[8px] sm:text-[9px] md:text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+              (Affiliated to Annamalai University, Annamalai Nagar-608002)
+            </span>
+            <div className="w-16 h-[1px] bg-zinc-200 dark:bg-zinc-800/80 my-3"></div>
+            <span className="font-bold uppercase text-accent tracking-widest text-[9px] sm:text-[10px] md:text-xs">
+              PG DEPARTMENT OF COMPUTER APPLICATIONS
+            </span>
+          </div>
+
           {/* Title */}
           <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-955 dark:text-zinc-50 font-heading leading-tight mb-2">
             {festInfo.title}
-            <span className="block text-xs sm:text-sm md:text-base font-medium text-zinc-500 dark:text-zinc-400 tracking-normal mt-1 font-sans">
-              {festInfo.edition}
-            </span>
           </h1>
+
+          {/* Edition Subtitle */}
+          <span className="block text-xs sm:text-sm md:text-base font-medium text-zinc-500 dark:text-zinc-400 tracking-normal mt-1 font-sans mb-3">
+            {festInfo.edition}
+          </span>
 
           {/* Schedule Tags */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 text-xs sm:text-sm mt-3 text-zinc-500 dark:text-zinc-400">
@@ -429,6 +497,71 @@ export default function Landing() {
           event={activeBottomSheetEvent} 
           onClose={() => setActiveBottomSheetEvent(null)} 
         />
+
+        {/* Parallel Events Modal Dialog */}
+        {parallelEventsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+              onClick={() => setParallelEventsModal(null)}
+            />
+            
+            {/* Glassmorphic Container */}
+            <div className="relative w-full max-w-md bg-white/90 dark:bg-zinc-955/95 border border-zinc-200/50 dark:border-zinc-800/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md transform transition-all duration-350 animate-in fade-in zoom-in-95">
+              
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 pb-3 mb-4">
+                <h3 className="font-heading text-sm sm:text-base font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-accent"></span>
+                  <span>Parallel Events ({parallelEventsModal.startTime})</span>
+                </h3>
+                <button 
+                  onClick={() => setParallelEventsModal(null)}
+                  className="text-zinc-550 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors text-xs font-bold cursor-pointer px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-250/60 dark:border-zinc-800"
+                >
+                  Close
+                </button>
+              </div>
+              
+              {/* Modal List */}
+              <div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
+                {parallelEventsModal.list.map((evt, idx) => (
+                  <div 
+                    key={idx}
+                    className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/35 border border-zinc-200/50 dark:border-zinc-800/40"
+                  >
+                    <div className="font-bold text-sm sm:text-base text-zinc-900 dark:text-zinc-100 mb-2">
+                      {evt.name}
+                    </div>
+                    <div className="space-y-1 text-[10px] sm:text-xs text-zinc-650 dark:text-zinc-400">
+                      <div>
+                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">Time:</span> {evt.startTime} &mdash; {evt.endTime}
+                      </div>
+                      {evt.venue && (
+                        <div>
+                          <span className="font-semibold text-zinc-800 dark:text-zinc-200">Venue:</span> {evt.venue}
+                        </div>
+                      )}
+                      {evt.coordinator && (
+                        <div>
+                          <span className="font-semibold text-zinc-800 dark:text-zinc-200">Coordinator:</span> {evt.coordinator} {evt.phone ? (
+                            <a 
+                              href={`tel:${evt.phone.replace(/\s+/g, '')}`} 
+                              className="text-accent dark:text-[#F3C63F] hover:underline ml-1 font-bold inline-block"
+                            >
+                              ({evt.phone})
+                            </a>
+                          ) : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
