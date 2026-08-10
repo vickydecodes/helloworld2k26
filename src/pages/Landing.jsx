@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useEvents } from '../context/EventContext';
 import { festInfo } from '../data';
@@ -6,109 +6,16 @@ import Timeline from '../components/Timeline';
 import BottomSheet from '../components/BottomSheet';
 import { Calendar, Clock, RefreshCw, Search, Timer, Sun, Moon, Wrench } from 'lucide-react';
 
-function ScrambleText({ text, speed = 30, delay = 400, intervalTime = 10000 }) {
-  const [displayText, setDisplayText] = useState(text);
-  const chars = '01';
-
-  useEffect(() => {
-    let active = true;
-    let timer = null;
-
-    const triggerScramble = () => {
-      let iteration = 0;
-      clearInterval(timer);
-      timer = setInterval(() => {
-        if (!active) return;
-        const scrambled = text
-          .split('')
-          .map((char, index) => {
-            if (char === ' ' || char === '\'' || char === '-' || char === '<' || char === '>' || char === '/') return char;
-            if (index < iteration) return text[index];
-            return chars[Math.floor(Math.random() * chars.length)];
-          })
-          .join('');
-
-        setDisplayText(scrambled);
-
-        if (iteration >= text.length) {
-          clearInterval(timer);
-        }
-        iteration += 1 / 3;
-      }, speed);
-    };
-
-    // 1. Initial mount load trigger
-    const startTimeout = setTimeout(triggerScramble, delay);
-
-    // 2. Setup 10-second recurring interval trigger
-    const recurringInterval = setInterval(triggerScramble, intervalTime);
-
-    return () => {
-      clearTimeout(startTimeout);
-      clearInterval(timer);
-      clearInterval(recurringInterval);
-      active = false;
-    };
-  }, [text, speed, delay, intervalTime]);
-
-  const triggerHoverScramble = () => {
-    let iteration = 0;
-    const timer = setInterval(() => {
-      const scrambled = text
-        .split('')
-        .map((char, index) => {
-          if (char === ' ' || char === '\'' || char === '-' || char === '<' || char === '>' || char === '/') return char;
-          if (index < iteration) return text[index];
-          return chars[Math.floor(Math.random() * chars.length)];
-        })
-        .join('');
-
-      setDisplayText(scrambled);
-
-      if (iteration >= text.length) {
-        clearInterval(timer);
-      }
-      iteration += 1 / 2;
-    }, speed);
-  };
-
-  return (
-    <span 
-      onMouseEnter={triggerHoverScramble} 
-      className="cursor-default select-none"
-    >
-      {displayText}
-    </span>
-  );
-}
-
 export default function Landing() {
-  const { events, loading, error, systemTime, refresh, theme, toggleTheme, syncing } = useEvents();
+  const { events, loading, error, systemTime, refresh, theme, toggleTheme } = useEvents();
   
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [activeBottomSheetEvent, setActiveBottomSheetEvent] = useState(null);
-  const [parallelEventsModal, setParallelEventsModal] = useState(null);
   
   // Scrolled state for sticky header animation
   const [scrolled, setScrolled] = useState(false);
-
-  // Group non-ended events by start time to find parallel upcoming events
-  const parallelGroups = useMemo(() => {
-    if (!events || events.length === 0) return [];
-    const groups = {};
-    events.forEach(event => {
-      if (event.status !== 'Ended') {
-        const time = event.startTime;
-        if (!groups[time]) groups[time] = [];
-        groups[time].push(event);
-      }
-    });
-    return Object.keys(groups)
-      .map(time => ({ startTime: time, list: groups[time] }))
-      .filter(g => g.list.length >= 2);
-  }, [events]);
   
   // Countdown details
   const [countdownText, setCountdownText] = useState('');
@@ -138,51 +45,27 @@ export default function Landing() {
     const live = events.filter(e => e.status === 'Started'); // maps to Started state
     
     if (live.length > 0) {
-      // Find all live events ending at the same time
-      const targetEndTime = live[0].endTime;
-      const targetDateStr = live[0].date;
-      const matchingLive = live.filter(e => e.endTime === targetEndTime && e.date === targetDateStr);
-      
-      const parts = targetEndTime.split(':');
+      const active = live[0];
+      const parts = active.endTime.split(':');
       const targetDate = new Date(systemTime);
       targetDate.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
       
       const diff = targetDate.getTime() - systemTime;
       if (diff > 0) {
-        let label = '';
-        if (matchingLive.length === 1) {
-          label = `${matchingLive[0].name} ends`;
-        } else if (matchingLive.length === 2) {
-          label = `${matchingLive[0].name} & ${matchingLive[1].name} end`;
-        } else {
-          label = `Multiple Events (${matchingLive.length}) end`;
-        }
-        setCountdownTargetName(label);
+        setCountdownTargetName(`${active.name} ends`);
         setCountdownText(formatDiff(diff));
       } else {
         setCountdownText('');
       }
     } else if (upcoming.length > 0) {
-      // Find all upcoming events starting at the same time
-      const targetStartTime = upcoming[0].startTime;
-      const targetDateStr = upcoming[0].date;
-      const matchingUpcoming = upcoming.filter(e => e.startTime === targetStartTime && e.date === targetDateStr);
-
-      const parts = targetStartTime.split(':');
+      const next = upcoming[0];
+      const parts = next.startTime.split(':');
       const targetDate = new Date(systemTime);
       targetDate.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
       
       const diff = targetDate.getTime() - systemTime;
       if (diff > 0) {
-        let label = '';
-        if (matchingUpcoming.length === 1) {
-          label = `${matchingUpcoming[0].name} starts`;
-        } else if (matchingUpcoming.length === 2) {
-          label = `${matchingUpcoming[0].name} & ${matchingUpcoming[1].name} start`;
-        } else {
-          label = `Multiple Events (${matchingUpcoming.length}) start`;
-        }
-        setCountdownTargetName(label);
+        setCountdownTargetName(`${next.name} starts`);
         setCountdownText(formatDiff(diff));
       } else {
         setCountdownText('');
@@ -201,49 +84,19 @@ export default function Landing() {
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
+  // Build announcements for static banner (no scroll)
   const getAnnouncementText = () => {
     if (events.length === 0) return '';
-    
-    // 1. Group active (Live) events
     const live = events.filter(e => e.status === 'Started');
     if (live.length > 0) {
-      const targetEndTime = live[0].endTime;
-      const targetDateStr = live[0].date;
-      const matchingLive = live.filter(e => e.endTime === targetEndTime && e.date === targetDateStr);
-
-      if (matchingLive.length === 1) {
-        const active = matchingLive[0];
-        return `${active.name} is active at ${active.venue.split('(')[0].trim()}.`;
-      } else if (matchingLive.length === 2) {
-        const activeA = matchingLive[0];
-        const activeB = matchingLive[1];
-        return `${activeA.name} at ${activeA.venue.split('(')[0].trim()} & ${activeB.name} at ${activeB.venue.split('(')[0].trim()} are active.`;
-      } else {
-        const listStr = matchingLive.map(e => `${e.name} at ${e.venue.split('(')[0].trim()}`).join(', ');
-        return `Multiple events are active: ${listStr}.`;
-      }
+      const active = live[0];
+      return `${active.name} is active at ${active.venue.split('(')[0].trim()}.`;
     }
-
-    // 2. Group upcoming events
     const upcoming = events.filter(e => e.status === 'Upcoming');
     if (upcoming.length > 0) {
-      const targetStartTime = upcoming[0].startTime;
-      const targetDateStr = upcoming[0].date;
-      const matchingUpcoming = upcoming.filter(e => e.startTime === targetStartTime && e.date === targetDateStr);
-
-      if (matchingUpcoming.length === 1) {
-        const next = matchingUpcoming[0];
-        return `Next event: ${next.name} starts at ${next.startTime} in ${next.venue.split('(')[0].trim()}.`;
-      } else if (matchingUpcoming.length === 2) {
-        const nextA = matchingUpcoming[0];
-        const nextB = matchingUpcoming[1];
-        return `Next events: ${nextA.name} (in ${nextA.venue.split('(')[0].trim()}) & ${nextB.name} (in ${nextB.venue.split('(')[0].trim()}) start at ${nextA.startTime}.`;
-      } else {
-        const listStr = matchingUpcoming.map(e => `${e.name} (in ${e.venue.split('(')[0].trim()})`).join(', ');
-        return `Next events: ${listStr} start at ${matchingUpcoming[0].startTime}.`;
-      }
+      const next = upcoming[0];
+      return `Next event: ${next.name} starts at ${next.startTime} in ${next.venue.split('(')[0].trim()}.`;
     }
-    
     return '';
   };
 
@@ -330,37 +183,11 @@ export default function Landing() {
         </button>
       </div>
 
-      {/* Announcement Banner (Clickable button if parallel events exist) */}
+      {/* Static Announcement Banner (Muted & Clean) */}
       {announcement && (
-        (() => {
-          const hasParallel = parallelGroups.length > 0;
-          const bannerContent = (
-            <div className="text-center w-full break-words">
-              {hasParallel && <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse mr-1.5 -translate-y-[1.5px] flex-shrink-0" />}
-              <span className="inline">
-                {announcement}
-                {hasParallel && <span className="underline ml-1.5 opacity-90 hover:opacity-100">[View Details]</span>}
-              </span>
-            </div>
-          );
-
-          if (hasParallel) {
-            return (
-              <button
-                onClick={() => setParallelEventsModal(parallelGroups[0])}
-                className="w-full bg-accent-light dark:bg-[#5D4416]/20 hover:bg-accent-light/80 dark:hover:bg-[#5D4416]/30 border-b border-accent/20 dark:border-[#8E6E32]/30 text-accent-dark dark:text-accent-light py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed cursor-pointer transition-all duration-200 block"
-              >
-                {bannerContent}
-              </button>
-            );
-          }
-
-          return (
-            <div className="w-full bg-accent-light dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-accent-dark dark:text-accent py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed break-words">
-              {bannerContent}
-            </div>
-          );
-        })()
+        <div className="w-full bg-accent-light dark:bg-zinc-900/30 border-b border-accent/20 dark:border-zinc-800/40 text-accent-dark dark:text-accent py-2.5 px-4 text-center text-xs font-semibold tracking-wide leading-relaxed break-words">
+          <span>{announcement}</span>
+        </div>
       )}
 
       <div className="w-full max-w-3xl mx-auto px-6 py-8 md:py-16 flex-1 flex flex-col justify-between">
@@ -395,41 +222,14 @@ export default function Landing() {
               HW
             </div>
           </div>
-
-          {/* Institution & Department Branding */}
-          <div className="flex flex-col items-center text-center space-y-1 mb-8 max-w-xl px-4">
-            <span className="font-extrabold uppercase text-zinc-800 dark:text-zinc-200 tracking-widest text-[10px] sm:text-xs md:text-sm leading-snug">
-              ST. JOSEPH S COLLEGE OF ARTS & SCIENCE (AUTONOMOUS)
-            </span>
-            <span className="font-semibold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider text-[9px] sm:text-[10px] md:text-xs">
-              CUDDALORE - 607 001.
-            </span>
-            <span className="text-[8px] sm:text-[9px] md:text-[10px] text-zinc-400 dark:text-zinc-500 italic">
-              (Affiliated to Annamalai University, Annamalai Nagar-608002)
-            </span>
-            <div className="w-16 h-[1px] bg-zinc-200 dark:bg-zinc-800/80 my-3"></div>
-            <span className="font-bold uppercase text-accent tracking-widest text-[9px] sm:text-[10px] md:text-xs">
-              PG DEPARTMENT OF COMPUTER APPLICATIONS
-            </span>
-          </div>
           
-          {/* Title (Floating Glassmorphic Capsule with Shimmering Liquid Gold & Blinking Cursor) */}
-          <div className="relative mt-2 mb-2 select-none">
-            {/* Ambient Pulse Glow Backdrop */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-amber-500/10 dark:bg-yellow-500/5 blur-3xl pointer-events-none z-[-1] animate-pulse"></div>
-            
-            <div className="relative inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl bg-white/85 dark:bg-zinc-900/40 border border-[#8E6E32]/20 dark:border-zinc-800/50 backdrop-blur-md shadow-sm shadow-[#8E6E32]/5 dark:shadow-none animate-float-slow">
-              <h1 className="text-[15px] sm:text-xl md:text-3xl font-extrabold tracking-wider bg-gradient-to-r from-[#B38F3E] via-[#F6D06F] to-[#B38F3E] dark:from-[#F3C63F] dark:via-[#FFEBB3] dark:to-[#AA7C11] bg-[length:200%_auto] bg-clip-text text-transparent font-mono uppercase leading-none select-none animate-gold-shine flex items-center gap-1">
-                <ScrambleText text={festInfo.title} />
-                <span className="w-1 h-3.5 sm:w-1.5 sm:h-4.5 bg-accent/80 dark:bg-[#F3C63F] animate-terminal-blink flex-shrink-0 inline-block -translate-y-[1px]"></span>
-              </h1>
-            </div>
-          </div>
-
-          {/* Edition Subtitle */}
-          <span className="block text-xs sm:text-sm md:text-base font-semibold text-zinc-500 dark:text-zinc-400 tracking-normal mt-3 font-sans">
-            {festInfo.edition}
-          </span>
+          {/* Title */}
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-zinc-955 dark:text-zinc-50 font-heading leading-tight mb-2">
+            {festInfo.title}
+            <span className="block text-xs sm:text-sm md:text-base font-medium text-zinc-500 dark:text-zinc-400 tracking-normal mt-1 font-sans">
+              {festInfo.edition}
+            </span>
+          </h1>
 
           {/* Schedule Tags */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 text-xs sm:text-sm mt-3 text-zinc-500 dark:text-zinc-400">
@@ -451,7 +251,6 @@ export default function Landing() {
               <span className="font-mono text-zinc-900 dark:text-zinc-100 font-extrabold">{countdownText}</span>
             </div>
           )}
-
         </header>
 
 
@@ -497,6 +296,14 @@ export default function Landing() {
             <h2 className="text-xs md:text-sm font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500">
               Schedule Timeline
             </h2>
+            
+            <button 
+              onClick={() => refresh()}
+              className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-semibold px-2.5 py-1 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all shadow-3xs cursor-pointer"
+            >
+              <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+              <span>Sync</span>
+            </button>
           </div>
 
           {/* Timetable schedule content */}
@@ -622,71 +429,6 @@ export default function Landing() {
           event={activeBottomSheetEvent} 
           onClose={() => setActiveBottomSheetEvent(null)} 
         />
-
-        {/* Parallel Events Modal Dialog */}
-        {parallelEventsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
-              onClick={() => setParallelEventsModal(null)}
-            />
-            
-            {/* Glassmorphic Container */}
-            <div className="relative w-full max-w-md bg-white/90 dark:bg-zinc-950/95 border border-zinc-200/50 dark:border-zinc-800/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md transform transition-all duration-350 animate-in fade-in zoom-in-95">
-              
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 pb-3 mb-4">
-                <h3 className="font-heading text-sm sm:text-base font-extrabold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-accent"></span>
-                  <span>Parallel Events ({parallelEventsModal.startTime})</span>
-                </h3>
-                <button 
-                  onClick={() => setParallelEventsModal(null)}
-                  className="text-zinc-550 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors text-xs font-bold cursor-pointer px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-250/60 dark:border-zinc-800"
-                >
-                  Close
-                </button>
-              </div>
-              
-              {/* Modal List */}
-              <div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
-                {parallelEventsModal.list.map((evt, idx) => (
-                  <div 
-                    key={idx}
-                    className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/35 border border-zinc-200/50 dark:border-zinc-800/40"
-                  >
-                    <div className="font-bold text-sm sm:text-base text-zinc-900 dark:text-zinc-100 mb-2">
-                      {evt.name}
-                    </div>
-                    <div className="space-y-1 text-[10px] sm:text-xs text-zinc-650 dark:text-zinc-400">
-                      <div>
-                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">Time:</span> {evt.startTime} &mdash; {evt.endTime}
-                      </div>
-                      {evt.venue && (
-                        <div>
-                          <span className="font-semibold text-zinc-800 dark:text-zinc-200">Venue:</span> {evt.venue}
-                        </div>
-                      )}
-                      {evt.coordinator && (
-                        <div>
-                          <span className="font-semibold text-zinc-800 dark:text-zinc-200">Coordinator:</span> {evt.coordinator} {evt.phone ? (
-                            <a 
-                              href={`tel:${evt.phone.replace(/\s+/g, '')}`} 
-                              className="text-accent dark:text-[#F3C63F] hover:underline ml-1 font-bold inline-block"
-                            >
-                              ({evt.phone})
-                            </a>
-                          ) : ''}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </div>

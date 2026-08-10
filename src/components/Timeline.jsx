@@ -1,21 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, ArrowRight, CheckCircle2, Eye, EyeOff, Calendar } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { MapPin, ArrowRight, CheckCircle2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import PhaseBadge from './PhaseBadge';
-import { getGoogleCalendarLink } from '../lib/sheetStatus';
 
 export default function Timeline({ events, onEventClick }) {
   const hasScrolledRef = useRef(false);
-  const [unblurredCardIds, setUnblurredCardIds] = useState([]);
-
-  const toggleCardBlur = (eventId, e) => {
-    e.stopPropagation(); // Avoid triggering bottom sheet details
-    setUnblurredCardIds(prev => 
-      prev.includes(eventId) 
-        ? prev.filter(id => id !== eventId) 
-        : [...prev, eventId]
-    );
-  };
 
   // Sort events chronologically by index, fallback to start time
   const sortedEvents = [...events].sort((a, b) => (a.index - b.index) || a.startTime.localeCompare(b.startTime));
@@ -57,7 +46,6 @@ export default function Timeline({ events, onEventClick }) {
         const status = event.status;
         const isLive = status === 'Started';
         const isEnded = status === 'Ended';
-        const isManualUnblurred = unblurredCardIds.includes(event.id);
 
         return (
           <div 
@@ -111,131 +99,87 @@ export default function Timeline({ events, onEventClick }) {
                 {formatTime(event.startTime)} &mdash; {formatTime(event.endTime)}
               </div>
 
-                  <div 
-                    onClick={() => onEventClick(event)}
-                    className={`editorial-card p-5 md:p-6 transition-all duration-300 cursor-pointer group relative overflow-hidden ${
-                      isEnded 
-                        ? 'z-10 bg-zinc-50/30 dark:bg-zinc-900/15 border-zinc-200/40 dark:border-zinc-800/30 backdrop-blur-xs shadow-none hover:shadow-none' 
-                        : isLive
-                          ? 'bg-white/75 dark:bg-zinc-900/60 backdrop-blur-md border-accent dark:border-accent shadow-sm shadow-accent/5 dark:shadow-none animate-live-glow hover:shadow-xs'
-                          : 'bg-white/60 dark:bg-zinc-900/30 backdrop-blur-md border-zinc-200/60 dark:border-zinc-800/40 hover:bg-white/75 dark:hover:bg-zinc-900/45 hover:border-accent/45 dark:hover:border-accent/45 hover:shadow-2xs'
-                    }`}
-                  >
-                    {/* Concluded Red 3D Diagonal Ribbon (Direct child of card container to ignore padding!) */}
-                    {isEnded && (
-                      <div className={`absolute w-[130px] text-white text-[9px] font-black py-0.5 uppercase tracking-widest text-center shadow-[0_2.5px_6px_rgba(0,0,0,0.32)] select-none z-20 transition-all duration-500 ease-in-out -rotate-45 before:content-[""] before:absolute before:inset-y-0 before:-left-[300px] before:-right-[300px] before:bg-gradient-to-r before:from-red-700 before:via-red-500 before:to-red-800 dark:before:from-red-800 dark:before:via-red-600 dark:before:to-red-900 before:border-t before:border-b before:border-white/20 before:z-[-1] ${
-                        isManualUnblurred 
-                          ? 'top-[calc(100%-42px)] left-[calc(100%-98px)]' 
-                          : 'top-[16px] left-[-32px]'
+              {/* Entire Rectangular Card is Clickable */}
+              <div 
+                onClick={() => onEventClick(event)}
+                className={`editorial-card p-5 md:p-6 transition-all duration-300 cursor-pointer group relative overflow-hidden ${
+                  !isEnded 
+                    ? '!bg-[#F5EFEB]/90 dark:!bg-[#5D4416]/20 border-[#8E6E32]/35 dark:border-[#8E6E32]/25' 
+                    : ''
+                } ${
+                  isLive 
+                    ? '!bg-[#F5EFEB] dark:!bg-[#5D4416]/40 border-accent/80 dark:border-accent/80 animate-live-glow' 
+                    : ''
+                } ${
+                  isEnded 
+                    ? 'z-[-10] bg-zinc-50/50 dark:bg-zinc-900/40 border-zinc-200/60 dark:border-zinc-800/40 shadow-none hover:shadow-none hover:border-zinc-200/60' 
+                    : 'hover:border-zinc-350 dark:hover:border-zinc-700 hover:shadow-2xs'
+                }`}
+              >
+                <div className="space-y-3.5">
+                  
+                  {/* Title & Desktop Badges */}
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className={`inline-flex items-center gap-1.5 text-base sm:text-lg font-bold transition-colors duration-250 ${
+                        isEnded 
+                          ? 'text-zinc-400 dark:text-zinc-500' 
+                          : 'text-zinc-900 dark:text-zinc-100 group-hover:text-accent dark:group-hover:text-accent'
                       }`}>
-                        Ended
+                        {isEnded && <CheckCircle2 size={15} className="text-zinc-400 dark:text-zinc-650 flex-shrink-0" />}
+                        <span>{event.name}</span>
+                        {!isEnded && <ArrowRight size={15} className="text-zinc-300 dark:text-zinc-600 group-hover:text-accent transform group-hover:translate-x-1 transition-all duration-300 ease-out opacity-0 group-hover:opacity-100" />}
                       </div>
-                    )}
-
-                    <div className="space-y-3.5 relative">
-                      
-                      {/* Blurred details wrapper (Only details are blurred, buttons and ribbons stay 100% sharp) */}
-                      <div className={`space-y-3.5 transition-all duration-300 ${
-                        isEnded && !isManualUnblurred ? 'filter blur-[1.3px] opacity-70' : 'blur-0 opacity-100'
-                      }`}>
-                        
-                        {/* Title & Desktop Badges */}
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="space-y-1.5 flex-1 min-w-0">
-                            <div className={`inline-flex items-center gap-1.5 text-base sm:text-lg font-bold transition-colors duration-250 ${
-                              isEnded 
-                                ? 'text-zinc-450 dark:text-zinc-500' 
-                                : 'text-zinc-900 dark:text-zinc-100 group-hover:text-accent dark:group-hover:text-accent'
-                            }`}>
-                              {isEnded && <CheckCircle2 size={15} className="text-zinc-400 dark:text-zinc-650 flex-shrink-0" />}
-                              <span>{event.name}</span>
-                              {!isEnded && <ArrowRight size={15} className="text-zinc-300 dark:text-zinc-600 group-hover:text-accent transform group-hover:translate-x-1 transition-all duration-300 ease-out opacity-0 group-hover:opacity-100" />}
-                            </div>
-                          </div>
-                          
-                          {/* Desktop Status Badges */}
-                          <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-                            {!isEnded && (
-                              Array.isArray(event.phases) && event.phases.length > 0 ? (
-                                event.phases.map((p, pIdx) => <PhaseBadge key={pIdx} phase={p} />)
-                              ) : (
-                                event.phase ? <PhaseBadge phase={event.phase} /> : null
-                              )
-                            )}
-                            <StatusBadge status={status} />
-                          </div>
-                        </div>
-       
-                        {/* Description */}
-                        {event.description && (
-                          <p className={`text-xs sm:text-sm leading-relaxed ${
-                            isEnded ? 'text-zinc-400/80 dark:text-zinc-550' : 'text-zinc-500 dark:text-zinc-400'
-                          }`}>
-                            {event.description}
-                          </p>
-                        )}
-       
-                        {/* Card Footer: Mobile Badges & Venue info */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800/40 text-xs">
-                          {event.venue && (
-                            <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
-                              isEnded ? 'text-zinc-400 dark:text-zinc-650' : 'text-zinc-455 dark:text-zinc-500'
-                            }`}>
-                              <MapPin size={11} className={isEnded ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-400 dark:text-zinc-650'} />
-                              <span>{event.venue}</span>
-                            </span>
-                          )}
-                          
-                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                            {!isEnded && (
-                              <a
-                                href={getGoogleCalendarLink(event)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded border border-[#8E6E32]/25 dark:border-zinc-800 bg-amber-500/5 dark:bg-yellow-500/5 hover:bg-[#8E6E32]/10 transition-all cursor-pointer text-[#B38F3E] dark:text-[#F3C63F] shadow-3xs"
-                                title="Add to Google Calendar"
-                              >
-                                <Calendar size={10} />
-                                <span>Add to Calendar</span>
-                              </a>
-                            )}
-                            {/* Mobile Status Badges */}
-                            <div className="sm:hidden flex flex-wrap items-center gap-1.5">
-                              {!isEnded && (
-                                Array.isArray(event.phases) && event.phases.length > 0 ? (
-                                  event.phases.map((p, pIdx) => <PhaseBadge key={pIdx} phase={p} />)
-                                ) : (
-                                  event.phase ? <PhaseBadge phase={event.phase} /> : null
-                                )
-                              )}
-                              <StatusBadge status={status} />
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* Unblurred Action Toggle Button (Positioned outside the blurred div) */}
-                      {isEnded && (
-                        <div className="flex justify-start pt-1 z-30 relative">
-                          <button 
-                            onClick={(e) => toggleCardBlur(event.id, e)}
-                            className="flex items-center gap-1 text-[9px] sm:text-[10px] font-extrabold px-2.5 py-1 rounded border border-zinc-200/80 dark:border-zinc-800/60 bg-white/95 dark:bg-zinc-900/95 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all cursor-pointer select-none text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                            title={isManualUnblurred ? "Blur details" : "Unblur details"}
-                          >
-                            {isManualUnblurred ? <EyeOff size={10} /> : <Eye size={10} />}
-                            <span>{isManualUnblurred ? "Hide details" : "Show details"}</span>
-                          </button>
-                        </div>
-                      )}
-       
+                    </div>
+                    
+                    {/* Desktop Status Badges */}
+                    <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+                      {!isEnded && event.phase && <PhaseBadge phase={event.phase} />}
+                      <StatusBadge status={status} />
                     </div>
                   </div>
+ 
+                  {/* Description */}
+                  {event.description && (
+                    <p className={`text-xs sm:text-sm leading-relaxed ${
+                      isEnded ? 'text-zinc-400/80 dark:text-zinc-550' : 'text-zinc-500 dark:text-zinc-400'
+                    }`}>
+                      {event.description}
+                    </p>
+                  )}
+ 
+                  {/* Card Footer: Mobile Badges & Venue info */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800/40 text-xs">
+                    {event.venue && (
+                      <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
+                        isEnded ? 'text-zinc-400 dark:text-zinc-600' : 'text-zinc-455 dark:text-zinc-500'
+                      }`}>
+                        <MapPin size={11} className={isEnded ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-400 dark:text-zinc-650'} />
+                        <span>{event.venue}</span>
+                      </span>
+                    )}
+                    
+                    {/* Mobile Status Badges */}
+                    <div className="sm:hidden flex items-center gap-1.5">
+                      {!isEnded && event.phase && <PhaseBadge phase={event.phase} />}
+                      <StatusBadge status={status} />
+                    </div>
+                  </div>
+ 
+                  {/* Concluded Red Corner Ribbon */}
+                  {isEnded && (
+                    <div className="absolute bottom-0 right-0 bg-red-600 dark:bg-red-700 text-white text-[9px] font-extrabold px-3 py-1 uppercase tracking-widest rounded-tl-xl shadow-sm select-none z-20">
+                      Ended
+                    </div>
+                  )}
+ 
                 </div>
               </div>
-            );
-          })}
+            </div>
+
+          </div>
+        );
+      })}
     </div>
   );
 }
